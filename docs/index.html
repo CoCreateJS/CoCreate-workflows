@@ -10,14 +10,17 @@
       <h1>CoCreate Workflows</h1>
       <p>
         CoCreate Workflows loads a workflow record by ID, evaluates its AST
-        actions on the server, and returns the configured workflow data mapping.
+        actions on the server, and merges the configured output fields into the
+        original workflow envelope.
       </p>
       <h2>Record structure</h2>
       <p>
         Workflow records live in the <code>workflows</code> array and contain
         an <code>_id</code>, a <code>name</code>, optional metadata, an
         <code>actions</code> AST object, and an optional <code>data</code>
-        response mapping. Workflows do not require an API configuration ID.
+        output mapping. Invocation fields are direct children of
+        <code>workflow</code>; the AST chooses which fields to read. Workflows
+        do not require an API configuration ID.
       </p>
       <p>See the project README and <code>demo/workflow.json</code> for usage.</p>
     </main>

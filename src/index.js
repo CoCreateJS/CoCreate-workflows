@@ -43,7 +43,6 @@ function createSandbox(envelope, workflowDefinition, organization_id, host) {
 
 	const sandbox = {
 		payload: envelope,
-		data: envelope.workflow.data,
 		event: envelope.event,
 		workflow: workflowDefinition,
 		crud,
@@ -56,7 +55,6 @@ function createSandbox(envelope, workflowDefinition, organization_id, host) {
 
 	Object.assign(sandbox, {
 		$payload: sandbox.payload,
-		$data: sandbox.data,
 		$event: sandbox.event,
 		$workflow: sandbox.workflow,
 		$crud: sandbox.crud,
@@ -72,78 +70,92 @@ function createSandbox(envelope, workflowDefinition, organization_id, host) {
 
 /**
  * Loads a workflow record by ID, evaluates its AST actions and output mapping,
- * and returns the evaluated data under the invocation's workflow property.
+ * and writes the evaluated data back to the same invocation envelope.
+ * Errors are appended to the envelope's error array.
  *
- * Invocation shape: { workflow: { _id, data }, organization_id, host }
+ * Invocation shape: { workflow: { _id, ...inputs }, organization_id, host }
  * Workflow record shape: { _id, name, enabled, actions, data }
  */
 async function run(envelope = {}) {
-	if (!server?.crud?.send) {
-		throw new Error("CoCreate Workflows has not been initialized with a server.");
-	}
-
-	const invocation = envelope.workflow;
-	const workflowId = invocation?._id;
-	if (!workflowId) {
-		throw new Error("A workflow ID is required at workflow._id.");
-	}
-
-	const organization_id = envelope.organization_id || envelope.socket?.organization_id;
-	const host = envelope.host || envelope.socket?.host;
-	if (!organization_id || !host) {
-		throw new Error("organization_id and host are required to run a workflow.");
-	}
-
-	const response = await server.crud.send({
-		method: "object.read",
-		array: "workflows",
-		object: { _id: workflowId },
-		organization_id,
-		host
-	});
-
-	const workflowDefinition = Array.isArray(response?.object)
-		? response.object[0]
-		: response?.object;
-
-	if (!workflowDefinition) {
-		throw new Error(`Workflow '${workflowId}' was not found.`);
-	}
-	if (workflowDefinition.enabled === false) {
-		throw new Error(`Workflow '${workflowId}' is disabled.`);
-	}
-	if (!workflowDefinition.actions || typeof workflowDefinition.actions !== "object") {
-		throw new Error(`Workflow '${workflowId}' has no actions object.`);
-	}
-
-	const executeAST = {
-		actions: workflowDefinition.actions,
-		data: workflowDefinition.data === undefined
-			? "$actions"
-			: workflowDefinition.data
-	};
-
-	const evaluated = await astAsync({
-		executeAST,
-		sandbox: createSandbox(envelope, workflowDefinition, organization_id, host)
-	});
-
-	return {
-		...envelope,
-		workflow: {
-			...invocation,
-			data: evaluated.data
+	try {
+		if (!server?.crud?.send) {
+			throw new Error("CoCreate Workflows has not been initialized with a server.");
 		}
-	};
+
+		const invocation = envelope.workflow;
+		const workflowId = invocation?._id;
+		if (!workflowId) {
+			throw new Error("A workflow ID is required at workflow._id.");
+		}
+
+		const organization_id = envelope.organization_id || envelope.socket?.organization_id;
+		const host = envelope.host || envelope.socket?.host;
+		if (!organization_id || !host) {
+			throw new Error("organization_id and host are required to run a workflow.");
+		}
+
+		const response = await server.crud.send({
+			method: "object.read",
+			array: "workflows",
+			object: { _id: workflowId },
+			organization_id,
+			host
+		});
+
+		const workflowDefinition = Array.isArray(response?.object)
+			? response.object[0]
+			: response?.object;
+
+		if (!workflowDefinition) {
+			throw new Error(`Workflow '${workflowId}' was not found.`);
+		}
+		if (workflowDefinition.enabled === false) {
+			throw new Error(`Workflow '${workflowId}' is disabled.`);
+		}
+		if (!workflowDefinition.actions || typeof workflowDefinition.actions !== "object") {
+			throw new Error(`Workflow '${workflowId}' has no actions object.`);
+		}
+
+		const executeAST = {
+			actions: workflowDefinition.actions,
+			data: workflowDefinition.data === undefined
+				? "$actions"
+				: workflowDefinition.data
+		};
+
+		const evaluated = await astAsync({
+			executeAST,
+			sandbox: createSandbox(envelope, workflowDefinition, organization_id, host)
+		});
+
+		if (evaluated.data && typeof evaluated.data === "object" && !Array.isArray(evaluated.data)) {
+			Object.assign(invocation, evaluated.data);
+		} else {
+			invocation.result = evaluated.data;
+		}
+		return envelope;
+	} catch (error) {
+		if (!Array.isArray(envelope.error)) {
+			envelope.error = envelope.error ? [envelope.error] : [];
+		}
+		envelope.error.push(error?.message || String(error));
+		return envelope;
+	}
+}
+
+async function handleSocketMessage(envelope) {
+	const response = await run(envelope);
+	return server.wsManager.send(response);
 }
 
 const API = { run };
 
 async function init(Server) {
-	if (!Server?.crud?.send) {
-		throw new Error("CoCreate Workflows requires Server.crud.send.");
+	if (!Server?.crud?.send || !Server?.wsManager?.on || !Server?.wsManager?.send) {
+		throw new Error("CoCreate Workflows requires Server.crud.send and Server.wsManager.");
 	}
 	server = Server;
+	server.wsManager.on("workflows", handleSocketMessage);
 	return API;
 }
 

@@ -35,7 +35,7 @@
           {
             "name": "run",
             "signature": "run({ workflow, organization_id, host })",
-            "description": "Loads a workflow by ID, evaluates its actions and data mapping with AST, and returns the result in workflow.data."
+            "description": "Loads a workflow by ID, evaluates its AST, merges mapped output fields into the original workflow object, and appends errors to envelope.error."
           }
         ],
         "initResultMethods": [
@@ -63,6 +63,9 @@
     }
   },
   "sideEffects": false,
+  "scripts": {
+    "test": "node --test"
+  },
   "dependencies": {
     "@cocreate/utils": "^1.57.0"
   }

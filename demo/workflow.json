@@ -1,20 +1,28 @@
 {
-  "_id": "workflow-record-id",
-  "name": "notify-users",
-  "description": "Example workflow record shape.",
+  "_id": "f10731474570ee016a4f3721",
+  "name": "unique",
+  "description": "Checks whether a key value already exists in a CRUD array.",
   "enabled": true,
   "actions": {
-    "recipient": {
+    "lookup": {
       "$crud.send": {
         "method": "object.read",
-        "array": "users",
-        "object": {
-          "_id": "$payload.workflow.data.userId"
+        "array": "$payload.workflow.array",
+        "filter": {
+          "query": {
+            "{{ $payload.workflow.key }}": "$payload.workflow.value"
+          },
+          "limit": 1
         }
       }
     }
   },
   "data": {
-    "recipient": "$actions.recipient.object.0"
+    "unique": {
+      "$if.$actions.lookup.object.length.$lt": {
+        "1": true,
+        "$else": false
+      }
+    }
   }
 }
