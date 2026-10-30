@@ -4,10 +4,6 @@ import Socket from "@cocreate/socket-client";
 import { astAsync, getData, setData } from "@cocreate/utils";
 
 const registeredWorkflows = new Set();
-const registeredWorkflowObservers = new Set();
-const workflowOnListeners = new WeakMap();
-const workflowOnDebounceTimers = new WeakMap();
-const INPUT_EVENT_DEBOUNCE = 1000;
 
 function getWorkflowNames(element) {
 	return (element?.getAttribute("workflow") || "")
@@ -41,6 +37,76 @@ function getErrorMessage(error) {
 	const lastError = Array.isArray(error) ? error.at(-1) : error;
 	if (typeof lastError === "string") return lastError;
 	return lastError?.message || (lastError ? String(lastError) : "Workflow request failed.");
+}
+
+async function invokeWorkflow(name, value, element) {
+	if (!name) throw new Error("A workflow name is required.");
+	if (!getWorkflowContainer(element, name)) {
+		throw new Error(`No workflow container declares '${name}'.`);
+	}
+
+	if (value === element || value === element?.attributes) {
+		const attributes = {};
+		for (const attribute of element.attributes) {
+			if (["workflow", "input"].includes(attribute.name)) continue;
+			attributes[attribute.name] = await element.getAttributeAsync(attribute.name);
+		}
+		if (typeof element.getValueAsync === "function") {
+			attributes.value = await element.getValueAsync();
+		} else if (typeof element.getValue === "function") {
+			attributes.value = await element.getValue();
+		}
+		value = attributes;
+	}
+
+	const workflowInput = Array.isArray(value) ? value : [value];
+	const response = await Socket.send({
+		method: `workflow.${name}`,
+		[name]: workflowInput,
+		broadcast: false,
+		broadcastClient: false
+	});
+
+	if (response?.error) throw new Error(getErrorMessage(response.error));
+
+	const responseAst = response?.workflowResponse;
+	if (responseAst === undefined) return response;
+	delete response.workflowResponse;
+
+	return await astAsync({
+		executeAST: responseAst,
+		node: element,
+		sandbox: {
+			$this: element,
+			$payload: response,
+			payload: response,
+			$response: response,
+			response
+		}
+	});
+}
+
+function attachWorkflowMethod(element) {
+	if (typeof element.workflow === "function") return;
+
+	Object.defineProperty(element, "workflow", {
+		configurable: true,
+		enumerable: false,
+		value: (name, value) => invokeWorkflow(name, value, element)
+	});
+}
+
+function initWorkflowInputs(root) {
+	const selector = "[input]";
+	const elements = new Set();
+	if (root?.matches?.(selector)) elements.add(root);
+	root?.querySelectorAll?.(selector).forEach((element) => elements.add(element));
+
+	for (const element of elements) {
+		if (getWorkflowNames(element.closest?.("[workflow]")).length) {
+			attachWorkflowMethod(element);
+		}
+	}
 }
 
 function finishWorkflowTrigger(action, type, detail) {
@@ -119,73 +185,6 @@ async function runWorkflow(name, action) {
 	}
 }
 
-function initWorkflowOn(name, root) {
-	if (!root) root = document;
-	const selector = `[${name}][${name}-on]`;
-	const elements = new Set();
-	if (root.matches?.(selector)) elements.add(root);
-	root.querySelectorAll?.(selector).forEach((element) => elements.add(element));
-
-	for (const element of elements) {
-		let listeners = workflowOnListeners.get(element);
-		if (!listeners) {
-			listeners = new Map();
-			workflowOnListeners.set(element, listeners);
-		}
-
-		const eventTypes = new Set((element.getAttribute(`${name}-on`) || "")
-			.split(/[\s,]+/)
-			.map((eventType) => eventType.trim())
-			.filter(Boolean));
-		const existing = listeners.get(name) || new Map();
-		let debounceTimers = workflowOnDebounceTimers.get(element);
-		if (!debounceTimers) {
-			debounceTimers = new Map();
-			workflowOnDebounceTimers.set(element, debounceTimers);
-		}
-
-		for (const [eventType, listener] of existing) {
-			if (!eventTypes.has(eventType)) {
-				element.removeEventListener(eventType, listener);
-				existing.delete(eventType);
-			}
-		}
-
-		for (const eventType of eventTypes) {
-			if (existing.has(eventType)) continue;
-			const listener = (event) => {
-				const triggerWorkflow = () => runWorkflow(name, {
-					element,
-					dataElement: element,
-					event
-				});
-
-				if (eventType === "input" || eventType === "change") {
-					clearTimeout(debounceTimers.get(name));
-					const timer = setTimeout(() => {
-						debounceTimers.delete(name);
-						triggerWorkflow();
-					}, INPUT_EVENT_DEBOUNCE);
-					debounceTimers.set(name, timer);
-				} else {
-					clearTimeout(debounceTimers.get(name));
-					debounceTimers.delete(name);
-					triggerWorkflow();
-				}
-			};
-			element.addEventListener(eventType, listener);
-			existing.set(eventType, listener);
-		}
-
-		if (![...eventTypes].some((eventType) => eventType === "input" || eventType === "change")) {
-			clearTimeout(debounceTimers.get(name));
-			debounceTimers.delete(name);
-		}
-
-		listeners.set(name, existing);
-	}
-}
-
 function registerWorkflow(name) {
 	if (!name) return;
 
@@ -196,26 +195,6 @@ function registerWorkflow(name) {
 			callback: (action) => runWorkflow(name, action)
 		});
 	}
-
-	if (registeredWorkflowObservers.has(name)) return;
-	registeredWorkflowObservers.add(name);
-	const selector = `[${name}][${name}-on]`;
-	const initialize = (mutation) => initWorkflowOn(name, mutation?.target);
-
-	Observer.init({
-		name: `${name}WorkflowOnNodeObserver`,
-		types: ["addedNodes"],
-		selector,
-		callback: initialize
-	});
-
-	Observer.init({
-		name: `${name}WorkflowOnAttributeObserver`,
-		types: ["attributes"],
-		selector,
-		attributeFilter: [name, `${name}-on`],
-		callback: initialize
-	});
 }
 
 function init(elements) {
@@ -223,9 +202,11 @@ function init(elements) {
 	else if (!Array.isArray(elements) && !elements[Symbol.iterator]) elements = [elements];
 
 	for (const element of elements) {
+		attachWorkflowMethod(element);
+		initWorkflowInputs(element);
+
 		for (const name of getWorkflowNames(element)) {
 			registerWorkflow(name);
-			initWorkflowOn(name, element);
 		}
 	}
 }
@@ -243,6 +224,14 @@ Observer.init({
 	selector: "[workflow]",
 	attributeFilter: ["workflow"],
 	callback: (mutation) => init(mutation.target)
+});
+
+Observer.init({
+	name: "workflowInputObserver",
+	types: ["addedNodes", "attributes"],
+	selector: "[input]",
+	attributeFilter: ["input"],
+	callback: (mutation) => initWorkflowInputs(mutation.target)
 });
 
 init();

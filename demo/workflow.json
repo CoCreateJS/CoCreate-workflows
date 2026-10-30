@@ -24,6 +24,6 @@
     }
   },
   "response": {
-    "$this.setAttribute": ["validation", "$payload.unique"]
+    "$this.setAttribute": ["unique", "$payload.unique"]
   }
 }

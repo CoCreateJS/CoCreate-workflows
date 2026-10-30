@@ -28,8 +28,7 @@
               "[workflow]"
             ],
             "triggers": [
-              "Actions invocation",
-              "native events from {workflowName}-on"
+              "Actions invocation"
             ],
             "initializesExistingElements": true,
             "observesAddedNodes": true,
@@ -39,22 +38,12 @@
             {
               "name": "workflow",
               "valueType": "comma-separated string",
-              "role": "Declares one or more workflow names and scopes each workflow action to its container."
+              "role": "Declares workflow names on a form scope and initializes workflow methods on the form and descendant input-AST elements."
             },
             {
               "name": "{name}-key",
               "valueType": "string",
-              "role": "Maps element values into the first object in the named workflow input array. If keyed values were collected, the evaluated response is passed to setData."
-            },
-            {
-              "name": "{workflowName}",
-              "valueType": "CoCreate attribute marker",
-              "role": "Marks this element as a workflow event source and contributes its mapped attributes and live value as an input object."
-            },
-            {
-              "name": "{workflowName}-on",
-              "valueType": "comma or whitespace-separated event names",
-              "role": "Registers native event listeners on the marked element and runs the workflow using only that element's data; input and change are debounced for 1 second."
+              "role": "Maps element values into the workflow request envelope using the named prefix. If keyed values were collected, the evaluated response is passed to setData."
             }
           ],
           "actions": [
@@ -74,7 +63,12 @@
             {
               "name": "init",
               "signature": "init(elements?)",
-              "description": "Registers workflow actions and native {workflowName}-on event listeners for existing or supplied workflow containers."
+              "description": "Registers workflow Actions and initializes the workflow method on existing or supplied workflow scopes and descendant input AST elements."
+            },
+            {
+              "name": "element.workflow",
+              "signature": "workflow(name, value)",
+              "description": "Available on initialized workflow elements and callable from AST as $workflow(name, value). Sends the value to the named workflow, awaits the socket response, and evaluates its response AST."
             }
           ]
         }

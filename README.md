@@ -67,28 +67,34 @@ selected workflow and sends the same envelope back. Inputs are read from
 `$payload.<name>`. Since `$data` points to that same envelope, workflow actions
 write results directly onto it.
 
-The `workflow` attribute declares the workflow scope. For a reactive
-uniqueness check, put the workflow name and `{name}-on` on the input itself.
-Each listed native event runs the workflow using only that marked element's
-attributes and current value; it does not require `actions="unique"`.
-`input` and `change` are debounced for 1 second; other events run immediately.
-The workflow record can include a `response` AST. The client evaluates it with
-`$this` set to the event source and `$payload` set to the returned envelope:
+The `workflow` attribute declares one or more workflow names on a form scope.
+It registers those names as Actions and initializes the workflow method on the
+form and descendant elements with an `input` AST. Workflow does not install
+native event listeners. Forms remain action-driven and collect `{name}-key`
+fields.
+
+Use Events and AST to invoke a workflow from an input or another event source:
 
 ```html
 <form workflow="unique">
-  <input unique unique-on="input" array="users" key="email" object="$user_id" type="email" />
+  <input input="$workflow('unique', $this)" array="organizations"
+    object="" key="host.name" value-suffix=".cocreate.app" />
 </form>
 ```
 
-The request contains `method: "workflow.unique"` and a top-level `unique`
-array with one object from the input element. The workflow response AST can
-write the result to the source element, for example:
+The call sends the current input's attributes and `getValue()` result as the
+workflow input object, then awaits and evaluates any response AST. Events owns
+the trigger and AST owns any follow-up behavior.
+
+The workflow record can include a `response` AST. The client evaluates it with
+`$this` set to the source element and `$payload` set to the returned envelope.
+For example, the response AST can write a workflow result to the source
+element:
 
 ```json
 {
   "response": {
-    "$this.setAttribute": ["validation", "$payload.unique"]
+    "$this.setAttribute": ["unique", "$payload.unique"]
   }
 }
 ```
@@ -96,7 +102,6 @@ write the result to the source element, for example:
 The client does not implicitly reflect the workflow result onto a same-named
 attribute. When the request collects `{name}-key` values, the evaluated result
 is passed to `setData`; without keyed values, the response AST owns the result
-handling. Comma-separated or whitespace-separated event names can be used in
-`unique-on`.
+handling.
 
 See [`demo/workflow.json`](demo/workflow.json) and the [documentation](docs/index.html).
