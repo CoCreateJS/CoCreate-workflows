@@ -1,0 +1,20 @@
+{
+  "_id": "workflow-record-id",
+  "name": "notify-users",
+  "description": "Example workflow record shape.",
+  "enabled": true,
+  "actions": {
+    "recipient": {
+      "$crud.send": {
+        "method": "object.read",
+        "array": "users",
+        "object": {
+          "_id": "$payload.workflow.data.userId"
+        }
+      }
+    }
+  },
+  "data": {
+    "recipient": "$actions.recipient.object.0"
+  }
+}

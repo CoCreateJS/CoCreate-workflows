@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>CoCreate Workflows</title>
+  </head>
+  <body>
+    <main>
+      <h1>CoCreate Workflows</h1>
+      <p>
+        CoCreate Workflows loads a workflow record by ID, evaluates its AST
+        actions on the server, and returns the configured workflow data mapping.
+      </p>
+      <h2>Record structure</h2>
+      <p>
+        Workflow records live in the <code>workflows</code> array and contain
+        an <code>_id</code>, a <code>name</code>, optional metadata, an
+        <code>actions</code> AST object, and an optional <code>data</code>
+        response mapping. Workflows do not require an API configuration ID.
+      </p>
+      <p>See the project README and <code>demo/workflow.json</code> for usage.</p>
+    </main>
+  </body>
+</html>

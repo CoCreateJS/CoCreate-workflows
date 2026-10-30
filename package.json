@@ -1,0 +1,69 @@
+{
+  "name": "@cocreate/workflows",
+  "version": "1.0.0",
+  "description": "Server-side execution of tenant-scoped CoCreate workflows with AST.",
+  "keywords": [
+    "cocreate",
+    "workflows",
+    "ast",
+    "server",
+    "orchestration"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "cocreate": {
+    "environment": [
+      "server"
+    ],
+    "interface": {
+      "schemaVersion": 1,
+      "summary": "Loads and executes organization-scoped workflow records using CoCreate AST.",
+      "source": "src/index.js",
+      "api": {
+        "exports": [
+          "default",
+          "init",
+          "run"
+        ],
+        "methods": [
+          {
+            "name": "init",
+            "signature": "init(Server)",
+            "description": "Binds the CoCreate server services and returns the workflow API."
+          },
+          {
+            "name": "run",
+            "signature": "run({ workflow, organization_id, host })",
+            "description": "Loads a workflow by ID, evaluates its actions and data mapping with AST, and returns the result in workflow.data."
+          }
+        ],
+        "initResultMethods": [
+          "run"
+        ]
+      }
+    }
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/CoCreateJS/CoCreate-workflows.git"
+  },
+  "author": "CoCreate LLC",
+  "license": "AGPL-3.0",
+  "bugs": {
+    "url": "https://github.com/CoCreateJS/CoCreate-workflows/issues"
+  },
+  "homepage": "https://cocreate.app/docs/workflows",
+  "type": "module",
+  "main": "./src/index.js",
+  "exports": {
+    ".": {
+      "node": "./src/index.js",
+      "default": "./src/index.js"
+    }
+  },
+  "sideEffects": false,
+  "dependencies": {
+    "@cocreate/utils": "^1.57.0"
+  }
+}
