@@ -1,28 +1,29 @@
 {
   "_id": "f10731474570ee016a4f3721",
   "name": "unique",
-  "description": "Checks whether a key value already exists in a CRUD array.",
+  "description": "Checks whether a value is available for a key in a CRUD array.",
   "enabled": true,
   "actions": {
     "lookup": {
       "$crud.send": {
         "method": "object.read",
-        "array": "$payload.workflow.array",
+        "array": "$payload.unique.0.array",
         "filter": {
           "query": {
-            "{{ $payload.workflow.key }}": "$payload.workflow.value"
+            "{{ $payload.unique.0.key }}": "$payload.unique.0.value"
           },
-          "limit": 1
+          "limit": 2
         }
+      }
+    },
+    "$data.unique": {
+      "$if.$actions.lookup.object.0.$exists": {
+        "$true": false,
+        "$else": true
       }
     }
   },
-  "data": {
-    "unique": {
-      "$if.$actions.lookup.object.length.$lt": {
-        "1": true,
-        "$else": false
-      }
-    }
+  "response": {
+    "$this.setAttribute": ["validation", "$payload.unique"]
   }
 }

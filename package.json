@@ -1,11 +1,12 @@
 {
   "name": "@cocreate/workflows",
   "version": "1.0.0",
-  "description": "Server-side execution of tenant-scoped CoCreate workflows with AST.",
+  "description": "Declarative client actions and tenant-scoped server execution for CoCreate workflows.",
   "keywords": [
     "cocreate",
     "workflows",
     "ast",
+    "client",
     "server",
     "orchestration"
   ],
@@ -14,33 +15,100 @@
   },
   "cocreate": {
     "environment": [
+      "client",
       "server"
     ],
     "interface": {
       "schemaVersion": 1,
       "summary": "Loads and executes organization-scoped workflow records using CoCreate AST.",
-      "source": "src/index.js",
-      "api": {
-        "exports": [
-          "default",
-          "init",
-          "run"
-        ],
-        "methods": [
-          {
-            "name": "init",
-            "signature": "init(Server)",
-            "description": "Binds the CoCreate server services and returns the workflow API."
+      "client": {
+        "declarative": {
+          "binding": {
+            "selectors": [
+              "[workflow]"
+            ],
+            "triggers": [
+              "Actions invocation",
+              "native events from {workflowName}-on"
+            ],
+            "initializesExistingElements": true,
+            "observesAddedNodes": true,
+            "observesWorkflowAttribute": true
           },
-          {
-            "name": "run",
-            "signature": "run({ workflow, organization_id, host })",
-            "description": "Loads a workflow by ID, evaluates its AST, merges mapped output fields into the original workflow object, and appends errors to envelope.error."
+          "attributes": [
+            {
+              "name": "workflow",
+              "valueType": "comma-separated string",
+              "role": "Declares one or more workflow names and scopes each workflow action to its container."
+            },
+            {
+              "name": "{name}-key",
+              "valueType": "string",
+              "role": "Maps element values into the first object in the named workflow input array. If keyed values were collected, the evaluated response is passed to setData."
+            },
+            {
+              "name": "{workflowName}",
+              "valueType": "CoCreate attribute marker",
+              "role": "Marks this element as a workflow event source and contributes its mapped attributes and live value as an input object."
+            },
+            {
+              "name": "{workflowName}-on",
+              "valueType": "comma or whitespace-separated event names",
+              "role": "Registers native event listeners on the marked element and runs the workflow using only that element's data; input and change are debounced for 1 second."
+            }
+          ],
+          "actions": [
+            {
+              "name": "{workflowName}",
+              "description": "Runs the named workflow for its nearest declaring container."
+            }
+          ]
+        },
+        "api": {
+          "defaultExport": "WorkflowsClient",
+          "exports": [
+            "default",
+            "init"
+          ],
+          "methods": [
+            {
+              "name": "init",
+              "signature": "init(elements?)",
+              "description": "Registers workflow actions and native {workflowName}-on event listeners for existing or supplied workflow containers."
+            }
+          ]
+        }
+      },
+      "server": {
+        "workflowRecord": {
+          "response": {
+            "valueType": "AST object",
+            "description": "Optional client-side response AST. The client evaluates it with $this set to the event source and $payload set to the returned envelope. Its result is passed to setData only when the request collected {name}-key values."
           }
-        ],
-        "initResultMethods": [
-          "run"
-        ]
+        },
+        "api": {
+          "defaultExport": "Workflows",
+          "exports": [
+            "default",
+            "init",
+            "run"
+          ],
+          "methods": [
+            {
+              "name": "init",
+              "signature": "init(Server)",
+              "description": "Binds server services and returns the workflow handler for registration on the workflow socket event."
+            },
+            {
+              "name": "run",
+              "signature": "run({ method: 'workflow.<name>', <name>, organization_id, host })",
+              "description": "Resolves a workflow by method name, executes ordered actions with $data referencing the original envelope, and appends errors to envelope.error."
+            }
+          ],
+          "initResultMethods": [
+            "run"
+          ]
+        }
       }
     }
   },
@@ -55,18 +123,23 @@
   },
   "homepage": "https://cocreate.app/docs/workflows",
   "type": "module",
-  "main": "./src/index.js",
+  "main": "./src/server.js",
+  "browser": "./src/client.js",
   "exports": {
     ".": {
-      "node": "./src/index.js",
-      "default": "./src/index.js"
+      "node": "./src/server.js",
+      "deno": "./src/server.js",
+      "browser": "./src/client.js",
+      "default": "./src/server.js"
     }
   },
-  "sideEffects": false,
   "scripts": {
     "test": "node --test"
   },
   "dependencies": {
+    "@cocreate/actions": "^1.27.0",
+    "@cocreate/observer": "^1.25.0",
+    "@cocreate/socket-client": "^1.45.0",
     "@cocreate/utils": "^1.57.0"
   }
 }

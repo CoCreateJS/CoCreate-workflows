@@ -1,7 +1,7 @@
 # CoCreate Workflows
 
 Server-side execution of organization-scoped workflow records with CoCreate AST.
-Workflow records are selected by ID and are independent of API provider records.
+Workflow records are selected by their name in the socket method and are independent of API provider records.
 
 ## Workflow record
 
@@ -19,72 +19,84 @@ Store records in the `workflows` array:
         "method": "object.read",
         "array": "users",
         "filter": {
-          "query": { "_id": "$payload.workflow.userId" },
+          "query": { "_id": "$payload.notify-users.0.userId" },
           "limit": 1
         }
       }
-    }
-  },
-  "data": {
-    "recipients": "$actions.recipients.object"
+    },
+    "$data.recipients": "$actions.recipients.object"
   }
 }
 ```
 
-The record owns its name and AST. It does not require an `api_id`. `actions`
-contains workflow steps; `data` maps output fields. If `data` is omitted, the
-evaluated `actions` object is merged into the `workflow` object.
+The record owns its name and AST. It does not require an `api_id`. Workflow
+actions execute in declaration order, one at a time. `$actions` holds previous
+action results. `$data` refers to the original socket envelope, so assignments
+such as `$data.recipients` write directly onto the same object that is returned
+to the client. There is no separate `data` mapping or output merge.
 
 ## Run a workflow
 
-Initialize the module with the CoCreate server, then pass the workflow ID and
-the workflow's inputs directly in the `workflow` object:
+Initialize the module with the CoCreate server. The method identifies the
+workflow; its same-named top-level property contains the input objects:
 
 ```js
 import Workflows from "@cocreate/workflows";
 
 const workflows = await Workflows.init(Server);
+Server.wsManager.on("workflow", workflows.run);
 const result = await workflows.run({
+  method: "workflow.notify-users",
   organization_id,
   host,
-  workflow: {
-    _id: "workflow-record-id",
-    userId: "user-record-id"
-  }
+  "notify-users": [{ userId: "user-record-id" }]
 });
 
 // result is the same envelope object, with workflow outputs merged in place.
 ```
 
-The AST sandbox exposes `$payload`, `$event`, `$workflow`, `$crud`,
-`$socket`, `$wsManager`, and `$api.send` when the corresponding server service
-is available. CRUD and socket calls are scoped to the invocation's organization
-and host. `run()` mutates and returns the original envelope so its identity and
-other fields continue through the server pipeline. Execution errors are appended
-to the envelope's `error` array.
+The AST sandbox exposes `$payload`, `$event`, `$workflow`, `$crud`, `$socket`,
+`$wsManager`, and `$api.send` when the corresponding server service is
+available. CRUD and socket calls are scoped to the invocation's organization
+and host. `run()` mutates and returns the original envelope. Execution errors
+are appended to the envelope's `error` array.
 
-Socket messages use `method: "workflows.run"`. The module listens on the
-`workflows` socket event, executes the selected workflow, and sends the same
-envelope back. Inputs are read from `$payload.workflow.<field>`; the stored
-workflow record's `data` mapping defines output fields, which are merged into
-`workflow`.
+Socket messages use `method: "workflow.<name>"`. The server registers the
+handler returned by `init()` on the `workflow` socket event. It executes the
+selected workflow and sends the same envelope back. Inputs are read from
+`$payload.<name>`. Since `$data` points to that same envelope, workflow actions
+write results directly onto it.
 
-The Elements Socket Handler can call the workflow without a Unique client
-module:
+The `workflow` attribute declares the workflow scope. For a reactive
+uniqueness check, put the workflow name and `{name}-on` on the input itself.
+Each listed native event runs the workflow using only that marked element's
+attributes and current value; it does not require `actions="unique"`.
+`input` and `change` are debounced for 1 second; other events run immediately.
+The workflow record can include a `response` AST. The client evaluates it with
+`$this` set to the event source and `$payload` set to the returned envelope:
 
 ```html
-<form socket="workflows.run">
-  <input type="hidden" socket-key="workflow._id" value="f10731474570ee016a4f3721" />
-  <input type="hidden" socket-key="workflow.array" value="users" />
-  <input type="hidden" socket-key="workflow.key" value="email" />
-  <input socket-key="workflow.value" type="email" />
-  <button type="button" actions="send">Check availability</button>
-  <output socket-on="workflows.run" socket-on-key="workflow.unique"></output>
+<form workflow="unique">
+  <input unique unique-on="input" array="users" key="email" object="$user_id" type="email" />
 </form>
 ```
 
-The socket handler builds the nested workflow object from the dotted
-`socket-key` values, sends it as the request envelope, and maps the returned
-`workflow.unique` value into the output.
+The request contains `method: "workflow.unique"` and a top-level `unique`
+array with one object from the input element. The workflow response AST can
+write the result to the source element, for example:
+
+```json
+{
+  "response": {
+    "$this.setAttribute": ["validation", "$payload.unique"]
+  }
+}
+```
+
+The client does not implicitly reflect the workflow result onto a same-named
+attribute. When the request collects `{name}-key` values, the evaluated result
+is passed to `setData`; without keyed values, the response AST owns the result
+handling. Comma-separated or whitespace-separated event names can be used in
+`unique-on`.
 
 See [`demo/workflow.json`](demo/workflow.json) and the [documentation](docs/index.html).
