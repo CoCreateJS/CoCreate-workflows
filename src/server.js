@@ -50,6 +50,8 @@ function createSandbox(envelope, workflowDefinition, organization_id, host) {
 		socket,
 		wsManager: socket,
 		api,
+		fetch: (...args) => globalThis.fetch(...args),
+		URL: globalThis.URL,
 		organization_id,
 		host
 	};
@@ -64,6 +66,8 @@ function createSandbox(envelope, workflowDefinition, organization_id, host) {
 		$socket: sandbox.socket,
 		$wsManager: sandbox.wsManager,
 		$api: sandbox.api,
+		$fetch: sandbox.fetch,
+		$URL: sandbox.URL,
 		$organization_id: organization_id,
 		$host: host
 	});

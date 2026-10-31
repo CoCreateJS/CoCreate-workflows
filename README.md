@@ -61,6 +61,56 @@ available. CRUD and socket calls are scoped to the invocation's organization
 and host. `run()` mutates and returns the original envelope. Execution errors
 are appended to the envelope's `error` array.
 
+The server sandbox also provides `$fetch` and `$URL` for native server-side
+requests and URL parsing. File conversions are shared AST globals:
+`$encodeContent`, `$decodeContent`, `$getContentType`, `$getExtension`,
+`$getExtensions`, and `$isTextContentType`. Calls to async APIs are awaited by
+`astAsync`; methods such as `Response.arrayBuffer()` can be called using object
+AST, for example `{ "$actions.response.arrayBuffer": [] }`.
+
+## URL file workflow
+
+[`demo/fileFromUrl.json`](./demo/fileFromUrl.json) defines `fileFromUrl`. Its
+ordered AST actions fetch a URL, check the response, read its bytes, encode raw
+Base64, fill in file metadata, upsert the file in the `files` array by host and
+pathname, and replace the input with the saved record on the same
+envelope. The workflow handler sends that envelope once after the actions finish.
+
+The CoCreate App test page is `src/FileUploader.html`. It uses a generic workflow
+form and CoCreate File's renderer, with no dependency on CoCreate URL Uploader or
+File's special `importUrl` action:
+
+```html
+<form workflow="fileFromUrl">
+  <input type="url" fileFromUrl-key="src" fileFromUrl-set-data="false"
+         value="https://www.w3.org/Icons/w3c_home.png" required>
+  <button type="submit" actions="validate, fileFromUrl">Import URL</button>
+  <input id="imported-file" type="file" fileFromUrl-key="fileFromUrl"
+         fileFromUrl-get-data="false" realtime="false" hidden>
+</form>
+<template file-for="imported-file">
+  <p>{{object.name}} — {{object.size}} bytes</p>
+</template>
+```
+
+The request key `src` builds the workflow input. The response controller's key
+`fileFromUrl` selects the complete returned file from the response envelope.
+Direction flags preserve the entered URL and exclude the output from requests.
+CoCreate File renders the stored object. The demo accepts a destination directory
+and cache/access policy and links to the saved pathname. The current host is used
+unless explicitly supplied; files default to public caching when headers are omitted.
+Importing the same host and pathname updates the existing record.
+
+The wire format is `{ method: "workflow.fileFromUrl", fileFromUrl: [{ src: url }] }`.
+The result replaces `fileFromUrl` with the file object containing `src` (raw
+Base64), `name`, `size`, `content-type`, `directory`, `path`, and `pathname`.
+The saved record also includes its database ID and host. Existing metadata is retained. Failures use the workflow envelope's `error` array.
+Save the workflow record in the target organization and restart the server after
+updating the sandbox bindings. The running client bundle must contain the shared
+AST globals.
+
+## Client workflow binding
+
 Socket messages use `method: "workflow.<name>"` with the input under the same
 top-level name, such as `{ method: "workflow.unique", unique: [...] }`. The
 server registers the handler returned by `init()` on the `workflow` socket

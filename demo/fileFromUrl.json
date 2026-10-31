@@ -1,0 +1,145 @@
+{
+  "name": "fileFromUrl",
+  "description": "Fetches a URL, saves the file in files by host and pathname, and returns the stored file in the same fileFromUrl envelope key.",
+  "enabled": true,
+  "actions": {
+    "url": {
+      "$URL": "$data.fileFromUrl.0.src"
+    },
+    "response": {
+      "$fetch": "$data.fileFromUrl.0.src"
+    },
+    "checkResponse": {
+      "$if.$actions.response.ok.$eq": {
+        "$true": true,
+        "$else": {
+          "$throw": {
+            "$concat": [
+              [
+                "Failed to fetch file: ",
+                "$actions.response.statusText"
+              ]
+            ]
+          }
+        }
+      }
+    },
+    "bytes": {
+      "$actions.response.arrayBuffer": []
+    },
+    "segments": {
+      "$actions.url.pathname.split": "/"
+    },
+    "basename": {
+      "$actions.segments.pop": []
+    },
+    "name": {
+      "$if.$data.fileFromUrl.0.name.$regex": {
+        ".": "$data.fileFromUrl.0.name",
+        "$else": {
+          "$if.$actions.basename.$regex": {
+            ".": "$actions.basename",
+            "$else": "downloaded_file"
+          }
+        }
+      }
+    },
+    "contentType": {
+      "$actions.response.headers.get": "content-type"
+    },
+    "$data.fileFromUrl.0.src": {
+      "$encodeContent": {
+        "value": "$actions.bytes",
+        "format": "base64"
+      }
+    },
+    "$data.fileFromUrl.0.size": "$actions.bytes.byteLength",
+    "$data.fileFromUrl.0.name": "$actions.name",
+    "$data.fileFromUrl.0.content-type": {
+      "$if.$actions.contentType.$regex": {
+        ".": "$actions.contentType",
+        "$else": {
+          "$getContentType": {
+            "pathname": "$actions.name"
+          }
+        }
+      }
+    },
+    "$data.fileFromUrl.0.directory": {
+      "$if.$data.fileFromUrl.0.directory.$regex": {
+        ".": "$data.fileFromUrl.0.directory",
+        "$else": "/"
+      }
+    },
+    "$data.fileFromUrl.0.path": {
+      "$if.$data.fileFromUrl.0.path.$regex": {
+        ".": "$data.fileFromUrl.0.path",
+        "$else": "$data.fileFromUrl.0.directory"
+      }
+    },
+    "pathEndsWithSlash": {
+      "$data.fileFromUrl.0.path.endsWith": "/"
+    },
+    "$data.fileFromUrl.0.pathname": {
+      "$if.$data.fileFromUrl.0.pathname.$regex": {
+        ".": "$data.fileFromUrl.0.pathname",
+        "$else": {
+          "$concat": [
+            [
+              "$data.fileFromUrl.0.path",
+              {
+                "$if.$actions.pathEndsWithSlash.$eq": {
+                  "$true": "",
+                  "$else": "/"
+                }
+              },
+              "$actions.name"
+            ]
+          ]
+        }
+      }
+    },
+    "$data.fileFromUrl.0.host": {
+      "$if.$data.fileFromUrl.0.host.$regex": {
+        ".": "$data.fileFromUrl.0.host",
+        "$else": "$host"
+      }
+    },
+    "$data.fileFromUrl.0.headers": {
+      "$if.$data.fileFromUrl.0.headers.$exists": {
+        "$true": "$data.fileFromUrl.0.headers",
+        "$else": {
+          "cache-control": "public, max-age=3600"
+        }
+      }
+    },
+    "save": {
+      "$crud.send": {
+        "method": "object.update",
+        "array": "files",
+        "filter": {
+          "query": {
+            "pathname": "$data.fileFromUrl.0.pathname",
+            "host": "$data.fileFromUrl.0.host"
+          }
+        },
+        "object": "$data.fileFromUrl.0",
+        "upsert": true,
+        "broadcast": false,
+        "broadcastClient": false
+      }
+    },
+    "checkSave": {
+      "$if.$actions.save.object.0.$exists": {
+        "$true": true,
+        "$else": {
+          "$throw": "Could not save imported file to files."
+        }
+      }
+    },
+    "savedFile": {
+      "$actions.save.object.pop": []
+    },
+    "$data.fileFromUrl": "$actions.savedFile"
+  }
+}

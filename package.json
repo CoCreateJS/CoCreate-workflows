@@ -95,6 +95,18 @@
           ],
           "initResultMethods": [
             "run"
+          ],
+          "sandboxBindings": [
+            "$fetch",
+            "$URL",
+            "$payload",
+            "$data",
+            "$actions",
+            "$workflow",
+            "$crud",
+            "$socket",
+            "$wsManager",
+            "$api"
           ]
         }
       }
