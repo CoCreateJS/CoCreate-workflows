@@ -99,19 +99,6 @@ function attachWorkflowMethod(element) {
 	});
 }
 
-function initWorkflowInputs(root) {
-	const selector = "[input]";
-	const elements = new Set();
-	if (root?.matches?.(selector)) elements.add(root);
-	root?.querySelectorAll?.(selector).forEach((element) => elements.add(element));
-
-	for (const element of elements) {
-		if (getWorkflowNames(element.closest?.("[workflow]")).length) {
-			attachWorkflowMethod(element);
-		}
-	}
-}
-
 function finishWorkflowTrigger(action, type, detail) {
 	if (typeof action[type] === "function") {
 		action[type](detail);
@@ -195,7 +182,6 @@ function init(elements) {
 
 	for (const element of elements) {
 		attachWorkflowMethod(element);
-		initWorkflowInputs(element);
 
 		for (const name of getWorkflowNames(element)) {
 			registerWorkflow(name);
@@ -216,14 +202,6 @@ Observer.init({
 	selector: "[workflow]",
 	attributeFilter: ["workflow"],
 	callback: (mutation) => init(mutation.target)
-});
-
-Observer.init({
-	name: "workflowInputObserver",
-	types: ["addedNodes", "attributes"],
-	selector: "[input]",
-	attributeFilter: ["input"],
-	callback: (mutation) => initWorkflowInputs(mutation.target)
 });
 
 init();
