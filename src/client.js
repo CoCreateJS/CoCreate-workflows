@@ -39,6 +39,23 @@ function getErrorMessage(error) {
 	return lastError?.message || (lastError ? String(lastError) : "Workflow request failed.");
 }
 
+async function resolveWorkflowResult(name, response, element) {
+	const result = response?.[name];
+	if (typeof result !== "string" || !result.trim().startsWith("$")) return result;
+
+	return astAsync({
+		executeAST: result,
+		node: element,
+		sandbox: {
+			$this: element,
+			$payload: response,
+			payload: response,
+			$response: response,
+			response
+		}
+	});
+}
+
 async function invokeWorkflow(name, value, element) {
 	if (!name) throw new Error("A workflow name is required.");
 	if (!getWorkflowContainer(element, name)) {
@@ -69,21 +86,7 @@ async function invokeWorkflow(name, value, element) {
 
 	if (response?.error) throw new Error(getErrorMessage(response.error));
 
-	const responseAst = response?.workflowResponse;
-	if (responseAst === undefined) return response;
-	delete response.workflowResponse;
-
-	return await astAsync({
-		executeAST: responseAst,
-		node: element,
-		sandbox: {
-			$this: element,
-			$payload: response,
-			payload: response,
-			$response: response,
-			response
-		}
-	});
+	return resolveWorkflowResult(name, response, element);
 }
 
 function attachWorkflowMethod(element) {
@@ -138,7 +141,7 @@ async function runWorkflow(name, action) {
 		const payload = await getData({ form: dataForm, prefix: name });
 		const response = await Socket.send({
 			method: `workflow.${name}`,
-			...payload,
+			[name]: [payload],
 			broadcast: false,
 			broadcastClient: false
 		});
@@ -151,31 +154,20 @@ async function runWorkflow(name, action) {
 			return;
 		}
 
-		const responseAst = response?.workflowResponse;
-		if (responseAst !== undefined) delete response.workflowResponse;
+		const result = await resolveWorkflowResult(
+			name,
+			response,
+			dataElement || action.element
+		);
 
-		const result = responseAst === undefined
-			? response
-			: await astAsync({
-				executeAST: responseAst,
-				node: dataElement || action.element,
-				sandbox: {
-					$this: dataElement || action.element,
-					$payload: response,
-					payload: response,
-					$response: response,
-					response
-				}
-			});
-
-		if (shouldSetData) {
+		if (shouldSetData && result !== undefined) {
 			setData({
 				form: container,
 				prefix: name,
-				data: result === undefined ? response : result
+				data: { [name]: result }
 			});
 		}
-		finishWorkflowTrigger(action, "end", { response });
+		finishWorkflowTrigger(action, "end", { [name]: result });
 	} catch (error) {
 		finishWorkflowTrigger(action, "abort", {
 			code: "workflow-request-failed",

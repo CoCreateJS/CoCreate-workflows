@@ -61,11 +61,15 @@ available. CRUD and socket calls are scoped to the invocation's organization
 and host. `run()` mutates and returns the original envelope. Execution errors
 are appended to the envelope's `error` array.
 
-Socket messages use `method: "workflow.<name>"`. The server registers the
-handler returned by `init()` on the `workflow` socket event. It executes the
-selected workflow and sends the same envelope back. Inputs are read from
-`$payload.<name>`. Since `$data` points to that same envelope, workflow actions
-write results directly onto it.
+Socket messages use `method: "workflow.<name>"` with the input under the same
+top-level name, such as `{ method: "workflow.unique", unique: [...] }`. The
+server registers the handler returned by `init()` on the `workflow` socket
+event. It executes the selected workflow on the same envelope and sends it
+back. Inputs are read from `$payload.<name>`. Since `$data` points to that same
+envelope, actions can replace the consumed input with the result under the same
+name. If that result is an AST expression string, the client evaluates it
+against the triggering element; scalar and data-object results are returned as
+values.
 
 The `workflow` attribute declares one or more workflow names on a form scope.
 It registers those names as Actions and initializes the workflow method on the
@@ -77,31 +81,30 @@ Use Events and AST to invoke a workflow from an input or another event source:
 
 ```html
 <form workflow="unique">
-  <input input="$workflow('unique', $this)" array="organizations"
-    object="" key="host.name" value-suffix=".cocreate.app" />
+  <input array="organizations" object="" key="host[0].name"
+    unique-key="host.name" value-suffix=".cocreate.app"
+    input="$workflow('unique', $this)" />
 </form>
 ```
 
-The call sends the current input's attributes and `getValue()` result as the
-workflow input object, then awaits and evaluates any response AST. Events owns
-the trigger and AST owns any follow-up behavior.
+The call sends the input's attributes and `getValue()` result under `unique`.
+Here, `key="host[0].name"` describes the input's data path, while
+`unique-key="host.name"` independently tells this workflow which database path
+to query. The workflow uses `$payload.unique.0.unique-key` as the filter key and
+`$payload.unique.0.value` as the search value. This lets the form keep its own
+field mapping while the workflow uses a database-appropriate path, such as a
+dotted path that matches names inside an array.
 
-The workflow record can include a `response` AST. The client evaluates it with
-`$this` set to the source element and `$payload` set to the returned envelope.
-For example, the response AST can write a workflow result to the source
-element:
-
-```json
-{
-  "response": {
-    "$this.setAttribute": ["unique", "$payload.unique"]
-  }
-}
-```
-
-The client does not implicitly reflect the workflow result onto a same-named
-attribute. When the request collects `{name}-key` values, the evaluated result
-is passed to `setData`; without keyed values, the response AST owns the result
-handling.
+`unique-key` is not a reserved Workflows attribute and the client does not give
+it special behavior. It is ordinary input metadata included in the submitted
+element attributes; the workflow AST decides how to use it. Workflows can accept
+other metadata and values in the same way, use them to select arrays, keys,
+filters, or actions, and write the result back under the workflow's method key.
+That result can be a scalar, a data object, or an AST expression string. The
+client evaluates returned AST expression strings against the triggering
+element, allowing a workflow to declaratively update the element, for example
+with `$this.setAttribute('unique', false)`. Form-level Actions use
+`{name}-key` fields to build their request object and map same-key results back
+to those fields.
 
 See [`demo/workflow.json`](demo/workflow.json) and the [documentation](docs/index.html).

@@ -100,7 +100,7 @@ async function executeWorkflowActions(actions, sandbox) {
  * Errors are appended to the envelope's error array.
  *
  * Invocation shape: { method: "workflow.<name>", <name>: [ ...inputs ], organization_id, host }
- * Workflow record shape: { _id, name, enabled, actions, response }
+ * Workflow record shape: { _id, name, enabled, actions }
  */
 async function run(envelope = {}) {
 	try {
@@ -155,9 +155,6 @@ async function run(envelope = {}) {
 
 		const sandbox = createSandbox(envelope, workflowDefinition, organization_id, host);
 		await executeWorkflowActions(workflowDefinition.actions, sandbox);
-		if (workflowDefinition.response !== undefined) {
-			envelope.workflowResponse = workflowDefinition.response;
-		}
 	} catch (error) {
 		if (!Array.isArray(envelope.error)) {
 			envelope.error = envelope.error ? [envelope.error] : [];

@@ -43,7 +43,7 @@
             {
               "name": "{name}-key",
               "valueType": "string",
-              "role": "Maps element values into the workflow request envelope using the named prefix. If keyed values were collected, the evaluated response is passed to setData."
+              "role": "Maps element values into the workflow request envelope using the named prefix. If keyed values were collected, the same-key workflow result is passed to setData."
             }
           ],
           "actions": [
@@ -68,18 +68,12 @@
             {
               "name": "element.workflow",
               "signature": "workflow(name, value)",
-              "description": "Available on initialized workflow elements and callable from AST as $workflow(name, value). Sends the value to the named workflow, awaits the socket response, and evaluates its response AST."
+              "description": "Available on initialized workflow elements and callable from AST as $workflow(name, value). Sends the value under the workflow name and evaluates AST expression strings returned under that same key."
             }
           ]
         }
       },
       "server": {
-        "workflowRecord": {
-          "response": {
-            "valueType": "AST object",
-            "description": "Optional client-side response AST. The client evaluates it with $this set to the event source and $payload set to the returned envelope. Its result is passed to setData only when the request collected {name}-key values."
-          }
-        },
         "api": {
           "defaultExport": "Workflows",
           "exports": [
