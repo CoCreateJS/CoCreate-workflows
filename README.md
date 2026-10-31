@@ -132,7 +132,7 @@ Use Events and AST to invoke a workflow from an input or another event source:
 ```html
 <form workflow="unique">
   <input array="organizations" object="" key="host[0].name"
-    unique-key="host.name" value-suffix=".cocreate.app"
+    unique-key="host.name" value-suffix=".CoCreateJS.com"
     input="$workflow('unique', $this)" />
 </form>
 ```

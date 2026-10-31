@@ -10,7 +10,7 @@ export default {
 				path: "/docs/workflows",
 				pathname: "/docs/workflows/index.html",
 				src: "{{./docs/index.html}}",
-				host: ["cocreate.app", "general.cocreate.app"],
+				host: ["CoCreateJS.com", "general.CoCreateJS.com"],
 				directory: "workflows",
 				"content-type": "{{content-type}}",
 				public: "true"

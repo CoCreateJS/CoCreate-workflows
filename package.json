@@ -121,7 +121,7 @@
   "bugs": {
     "url": "https://github.com/CoCreateJS/CoCreate-workflows/issues"
   },
-  "homepage": "https://cocreate.app/docs/workflows",
+  "homepage": "https://CoCreateJS.com/docs/workflows",
   "type": "module",
   "main": "./src/server.js",
   "browser": "./src/client.js",
