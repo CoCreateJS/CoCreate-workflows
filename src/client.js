@@ -176,6 +176,12 @@ function registerWorkflow(name) {
 	}
 }
 
+/**
+ * Registers workflow Actions and initializes the workflow method on existing or supplied workflow scopes and descendant input AST elements.
+ *
+ * @public
+ * @environment client
+ */
 function init(elements) {
 	if (!elements) elements = document.querySelectorAll("[workflow]");
 	else if (!Array.isArray(elements) && !elements[Symbol.iterator]) elements = [elements];
@@ -210,3 +216,102 @@ const WorkflowsClient = { init };
 
 export { init };
 export default WorkflowsClient;
+
+/**
+ *
+ * @name default
+ * @kind member
+ * @public
+ * @environment client
+ */
+
+/**
+ * Available on initialized workflow elements and callable from AST as $workflow(name, value). Sends the value under the workflow name and evaluates AST expression strings returned under that same key.
+ *
+ * @name element.workflow
+ * @kind member
+ * @public
+ * @signature workflow(name, value)
+ * @environment client
+ */
+
+/**
+ * Declares workflow names on a form scope and initializes workflow methods on the form and descendant input-AST elements.
+ *
+ * @name workflow
+ * @kind member
+ * @attribute
+ * @valueType comma-separated string
+ * @environment client
+ */
+
+/**
+ * Maps element values into the workflow request envelope using the named prefix. If keyed values were collected, the same-key workflow result is passed to setData.
+ *
+ * @name {name}-key
+ * @kind member
+ * @attribute
+ * @valueType string
+ * @environment client
+ */
+
+/**
+ * Loads and executes organization-scoped workflow records using CoCreate AST.
+ *
+ * @module workflows
+ * @environment client
+ */
+
+/**
+ * Declarative actions supported or registered by this module.
+ *
+ * @name declarative-actions
+ * @kind member
+ * @actions
+ * @environment client
+ * @example
+ * ```json
+ * [
+ *   {
+ *     "name": "{workflowName}",
+ *     "description": "Runs the named workflow for its nearest declaring container."
+ *   }
+ * ]
+ * ```
+ */
+
+/**
+ * Declarative binding behavior for this module.
+ *
+ * @name declarative-binding
+ * @kind member
+ * @binding
+ * @environment client
+ * @example
+ * ```json
+ * {
+ *   "selectors": [
+ *     "[workflow]"
+ *   ],
+ *   "triggers": [
+ *     "Actions invocation"
+ *   ],
+ *   "initializesExistingElements": true,
+ *   "observesAddedNodes": true,
+ *   "observesWorkflowAttribute": true
+ * }
+ * ```
+ */
+
+/**
+ * Default export contract for this module.
+ *
+ * @name api-default-export
+ * @kind member
+ * @default-export
+ * @environment client
+ * @example
+ * ```json
+ * "WorkflowsClient"
+ * ```
+ */

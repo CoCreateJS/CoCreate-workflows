@@ -57,16 +57,66 @@ function createSandbox(envelope, workflowDefinition, organization_id, host) {
 	};
 
 	Object.assign(sandbox, {
+		/**
+		 *
+ * @public
+ * @environment server
+ */
 		$payload: sandbox.payload,
 		$event: sandbox.event,
+		/**
+		 *
+ * @public
+ * @environment server
+ */
 		$workflow: sandbox.workflow,
+		/**
+		 *
+ * @public
+ * @environment server
+ */
 		$data: envelope,
+		/**
+		 *
+ * @public
+ * @environment server
+ */
 		$actions: sandbox.actions,
+		/**
+		 *
+ * @public
+ * @environment server
+ */
 		$crud: sandbox.crud,
+		/**
+		 *
+ * @public
+ * @environment server
+ */
 		$socket: sandbox.socket,
+		/**
+		 *
+ * @public
+ * @environment server
+ */
 		$wsManager: sandbox.wsManager,
+		/**
+		 *
+ * @public
+ * @environment server
+ */
 		$api: sandbox.api,
+		/**
+		 *
+ * @public
+ * @environment server
+ */
 		$fetch: sandbox.fetch,
+		/**
+		 *
+ * @public
+ * @environment server
+ */
 		$URL: sandbox.URL,
 		$organization_id: organization_id,
 		$host: host
@@ -105,6 +155,8 @@ async function executeWorkflowActions(actions, sandbox) {
  *
  * Invocation shape: { method: "workflow.<name>", <name>: [ ...inputs ], organization_id, host }
  * Workflow record shape: { _id, name, enabled, actions }
+ * @public
+ * @environment server
  */
 async function run(envelope = {}) {
 	try {
@@ -174,6 +226,12 @@ async function run(envelope = {}) {
 
 const API = { run };
 
+/**
+ * Binds server services and returns the workflow handler for registration on the workflow socket event.
+ *
+ * @public
+ * @environment server
+ */
 async function init(Server) {
 	if (!Server?.crud?.send) {
 		throw new Error("CoCreate Workflows requires Server.crud.send.");
@@ -186,3 +244,31 @@ const Workflows = { init, run };
 
 export { init, run };
 export default Workflows;
+
+/**
+ *
+ * @name default
+ * @kind member
+ * @public
+ * @environment server
+ */
+
+/**
+ * Loads and executes organization-scoped workflow records using CoCreate AST.
+ *
+ * @module workflows
+ * @environment server
+ */
+
+/**
+ * Default export contract for this module.
+ *
+ * @name api-default-export
+ * @kind member
+ * @default-export
+ * @environment server
+ * @example
+ * ```json
+ * "Workflows"
+ * ```
+ */
